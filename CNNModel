@@ -1,0 +1,131 @@
+#import some libraries that we will use for Keras and TensorFLow
+from tqdm import tqdm
+import numpy as np
+import keras
+from keras.utils import np_utils
+from keras.models import Sequential
+from keras.layers import Conv2D, MaxPooling2D
+from keras.layers import Activation, Dropout, Flatten, Dense
+from keras.constraints import max_norm
+from keras.utils import plot_model
+from keras import optimizers
+from keras.callbacks import ModelCheckpoint, EarlyStopping
+from keras.preprocessing.image import ImageDataGenerator
+from keras.utils import multi_gpu_model
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+from sklearn.metrics import classification_report,confusion_matrix
+
+#---------------> Loading and preparing the dataset <---------------
+#Train Data:
+train = tqdm(np.load('data_train.npy'))
+x_train = np.array([i[0] for i in train])
+y_train = [i[1] for i in train]
+
+y_train=np.concatenate(y_train)
+y_train=y_train.astype('float32')
+
+#Test Data:
+test = tqdm(np.load('data_test.npy'))
+x_test = np.array([i[0] for i in test])
+y_test = [i[1] for i in test]
+
+y_test=np.concatenate(y_test)
+y_test=y_test.astype('float32')
+
+#Normalize Data
+x_train = x_train.astype('float32')
+x_test = x_test.astype('float32')
+x_train /= 255
+x_test /= 255
+
+#---------------> Define the CNN architecture <---------------
+model = Sequential()
+
+model.add(Conv2D(32, (5, 5), input_shape=(x_train.shape[1:])))
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+
+model.add(Conv2D(32,(5, 5)))
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(2,2)))
+
+model.add(Conv2D(32,(5, 5)))
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(2,2)))
+
+model.add(Conv2D(64, (5,5)))
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(2,2)))
+
+model.add(Flatten())
+
+model.add(Dense(64))
+model.add(Activation('relu'))
+model.add(Dropout(0.5))
+
+model.add(Dense(1))
+model.add(Activation('sigmoid'))
+
+#---------------> Compile the model <---------------
+adm = optimizers.Adam(lr=0.0001)
+model = multi_gpu_model(model, gpus=2)
+model.compile(loss='binary_crossentropy', optimizer=adm, metrics=['accuracy'])
+
+#---------------> Data Augmentation <---------------
+train_datagen = ImageDataGenerator(
+        #rescale=None)
+        shear_range=0.2,  # set range for random shear
+        zoom_range=0.2,  # set range for random zoom
+        rotation_range=20, #randomly rotate images in the range (degrees, 0 to 180)
+        horizontal_flip=True)  # randomly flip images
+
+#---------------> Setting Checkpoints <---------------
+#filepath = "weights.E:{epoch:02d}--A:{val_acc:.4f}--L:{val_loss:.4f}.hdf5"
+#checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, mode='auto')
+
+#---------------> Start Training(Fit the model) <---------------
+batch_size=16
+history = model.fit_generator(train_datagen.flow(x_train, y_train),
+                                                 steps_per_epoch = 2000 // batch_size,
+                                                 epochs = 2000,
+                                                 validation_data = (x_test, y_test),
+                                                 validation_steps = 800 // batch_size,
+                                                 max_queue_size = 10,
+                                                 workers = 10,
+                                                 use_multiprocessing = True
+                                                 callbacks = [checkpoint])
+
+
+#---------------> Evaluating the model with test set <---------------
+score = model.evaluate(x_test, y_test, verbose=1)
+print()
+print('test loss:', score[0])
+print('test accuracy:', score[1])
+
+#---------------> Plotting the output <---------------
+print(history.history.keys())
+model.summary()
+
+f1=plt.figure(1)
+plt.plot(history.history['acc'])
+plt.plot(history.history['val_acc'])
+plt.title('model accuracy')
+plt.ylabel('accuracy')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc = 'upper left')
+plt.savefig('Eb_model_accuracy.pdf')
+f1.show()
+
+f2=plt.figure(2)
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc = 'upper left')
+plt.savefig('Eb_model_loss.pdf')
+f2.show()
+
+#Keep figures alive.This way I can select dynamically which figures I want to show
+input()
