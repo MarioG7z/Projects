@@ -3,6 +3,8 @@ from tqdm import tqdm
 import numpy as np
 import keras
 from keras.utils import np_utils
+from keras.utils import Sequence
+
 from keras.models import Sequential
 from keras.layers import Conv2D, MaxPooling2D
 from keras.layers import Activation, Dropout, Flatten, Dense
@@ -36,11 +38,10 @@ y_test=y_test.astype('float32')
 #Normalize Data
 x_train = x_train.astype('float32')
 x_test = x_test.astype('float32')
-x_train /= 255
-x_test /= 255
+#x_train /= 255
+#x_test /= 255
 
 #---------------> Sequence Class(): Batch Generator of the Data <---------------
-
 #class My_Generator(Sequence):
 
 #    def __init__(self, image_filenames, labels, batch_size):
@@ -58,7 +59,6 @@ x_test /= 255
 #        return np.array([file_name for file_name in batch_x]), np.array(batch_y)
 
 #---------------> Training and Test Batch_generator <---------------
-
 #batch_train = My_Generator(x_train, y_train, batch_size)
 #batch_test = My_Generator(x_test, y_test, batch_size)
 
@@ -97,11 +97,13 @@ model.compile(loss='binary_crossentropy', optimizer=adm, metrics=['accuracy'])
 
 #---------------> Data Augmentation <---------------
 train_datagen = ImageDataGenerator(
-        #rescale=None)
+        rescale=1./255
         shear_range=0.2,  # set range for random shear
         zoom_range=0.2,  # set range for random zoom
         rotation_range=20, #randomly rotate images in the range (degrees, 0 to 180)
         horizontal_flip=True)  # randomly flip images
+
+test_datagen = ImageDataGenerator(rescale=1./255)
 
 #---------------> Setting Checkpoints <---------------
 #filepath = "weights.E:{epoch:02d}--A:{val_acc:.4f}--L:{val_loss:.4f}.hdf5"
@@ -112,10 +114,10 @@ batch_size=16
 history = model.fit_generator(train_datagen.flow(x_train, y_train),
                                                  steps_per_epoch = 2000 // batch_size,
                                                  epochs = 2000,
-                                                 validation_data = (x_test, y_test),
+                                                 validation_data = test_datagen.flow(x_test, y_test),
                                                  validation_steps = 800 // batch_size,
-                                                 max_queue_size = 10,
-                                                 workers = 10,
+                                                 max_queue_size = 50,
+                                                 workers = 50,
                                                  use_multiprocessing = True
                                                  callbacks = [checkpoint])
 ##### TRAIN ON BATCHES #####
