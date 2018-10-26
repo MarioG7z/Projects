@@ -58,6 +58,7 @@ x_test /= 255
 #        return np.array([file_name for file_name in batch_x]), np.array(batch_y)
 
 #---------------> Training and Test Batch_generator <---------------
+
 #batch_train = My_Generator(x_train, y_train, batch_size)
 #batch_test = My_Generator(x_test, y_test, batch_size)
 
