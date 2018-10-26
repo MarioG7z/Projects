@@ -39,7 +39,7 @@ x_test = x_test.astype('float32')
 x_train /= 255
 x_test /= 255
 
-#---------------> Batch Generator of the Data <---------------
+#---------------> Sequence Class(): Batch Generator of the Data <---------------
 
 #class My_Generator(Sequence):
 
@@ -57,6 +57,9 @@ x_test /= 255
     
 #        return np.array([file_name for file_name in batch_x]), np.array(batch_y)
 
+#---------------> Training and Test Batch_generator <---------------
+#batch_train = My_Generator(x_train, y_train, batch_size)
+#batch_test = My_Generator(x_test, y_test, batch_size)
 
 #---------------> Define the CNN architecture <---------------
 model = Sequential()
@@ -114,7 +117,16 @@ history = model.fit_generator(train_datagen.flow(x_train, y_train),
                                                  workers = 10,
                                                  use_multiprocessing = True
                                                  callbacks = [checkpoint])
-
+##### TRAIN ON BATCHES #####
+#history = model.fit_generator(generator=batch_train,
+#                              steps_per_epoch = 2000 // batch_size,
+#                              epochs = 100,
+#                              validation_data = batch_test,
+#                              validation_steps = 800 // batch_size,
+#                              use_multiprocessing = True,
+#                              workers = 16,
+#                              max_queue_size = 32,
+#                              callbacks = [checkpoint])
 
 #---------------> Evaluating the model with test set <---------------
 score = model.evaluate(x_test, y_test, verbose=1)
