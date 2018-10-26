@@ -39,6 +39,25 @@ x_test = x_test.astype('float32')
 x_train /= 255
 x_test /= 255
 
+#---------------> Batch Generator of the Data <---------------
+
+#class My_Generator(Sequence):
+
+#    def __init__(self, image_filenames, labels, batch_size):
+#        self.image_filenames, self.labels = image_filenames, labels
+#        self.batch_size = batch_size
+    
+#    def __len__(self):
+#        conv = np.ceil(len(self.image_filenames) / float(self.batch_size) )
+#        return conv.astype('int64')
+
+#    def __getitem__(self, idx):
+#        batch_x = self.image_filenames[idx * self.batch_size:(idx + 1) * self.batch_size]
+#        batch_y = self.labels[idx * self.batch_size:(idx + 1) * self.batch_size]
+    
+#        return np.array([file_name for file_name in batch_x]), np.array(batch_y)
+
+
 #---------------> Define the CNN architecture <---------------
 model = Sequential()
 
