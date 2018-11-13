@@ -1,0 +1,50 @@
+import numpy as np
+obj = np.load('Embeddingv1.npz') #This File Just Contain the Representation of 3 classes
+labels = obj['labels']
+embeddings = obj['embeddings']
+
+----Getting the Labels to fit the SVM
+l=[]
+nlabels=[]
+for i in labels:
+    if i == 'Wolf':
+        l=0
+    elif i == 'Lion':
+        l=1
+    else:
+        l=2
+    nlabels.append(l)
+lab = np.array(nlabels)
+
+-------Reducing the dimensionality of the Embedding
+from sklearn.manifold import TSNE
+embeddings = TSNE(n_components=2).fit_transform(embeddings)
+
+x_emb = embeddings
+x_emb = x_emb.astype('float64')
+y_lab = lab 
+
+-----Training an SVC algorithm
+from sklearn import svm
+# C = SVM regularization parameter
+svc = svm.SVC(kernel='linear', C=10, gamma='auto').fit(x_emb, y_lab)
+
+# Creating a mesh to plot in
+x_min, x_max = x_emb[:, 0].min() - 1, x_emb[:, 0].max() + 1
+y_min, y_max = x_emb[:, 1].min() - 1, x_emb[:, 1].max() + 1
+h = (x_max / x_min)/100
+xx, yy = np.meshgrid(np.arange(x_min, x_max, h),
+np.arange(y_min, y_max, h))
+ 
+#showing the results
+import matplotlib.pyplot as plt
+plt.subplot(1, 1, 1)
+Z = svc.predict(np.c_[xx.ravel(), yy.ravel()])
+Z = Z.reshape(xx.shape)
+plt.contourf(xx, yy, Z, cmap=plt.cm.Paired, alpha=0.8)
+plt.scatter(X1[:, 0], X1[:, 1], c=y1, cmap=plt.cm.Paired)
+plt.xlabel('Sepal length')
+plt.ylabel('Sepal width')
+plt.xlim(xx.min(), xx.max())
+plt.title('SVC with linear kernel')
+plt.show()
