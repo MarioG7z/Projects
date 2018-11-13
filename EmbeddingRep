@@ -1,0 +1,64 @@
+#This part of code allow us to get the the images by batches of a specific size:
+#--------------------
+def input_pipeline(image_files, batch_size):
+    end_flag = False
+    for n in range(len(image_files)):
+        x_batch = np.zeros((0,150,150,3))
+        y_batch = []
+        for i in range(batch_size):
+            try:
+                img_path = image_files.pop(0)
+            except IndexError:
+                end_flag = True
+                break
+            img = image.load_img(img_path, target_size=(150, 150))
+            x = image.img_to_array(img)
+            x = np.expand_dims(x, axis=0)
+            x_batch = np.concatenate((x_batch, x), axis=0)
+            y = img_path.split('/')[-2]
+            y_batch.append(y)
+        if end_flag:
+            if x_batch.shape[0]>0:
+                yield x_batch, y_batch
+        else:
+            yield x_batch, y_batch
+#Iterative we will convert all images to its embedding representations and create a matrix containing all images
+#----------------------            
+import sys, time
+import numpy as np
+from keras.preprocessing import image
+from keras.models import Model
+from glob import glob
+from keras.models import load_model
+
+# Load the architecture with pre-trained weights.
+base_model = load_model('/home/abacus/KerasProjects/TensorFlow/BestModel.hdf5')
+print('Layers of the architecture:', [x.name for x in base_model.layers])
+sys.stdout.flush()
+
+# Define a custom model that given an input, outputs activations from requested layer.
+model = Model(input=base_model.input, output=base_model.get_layer('dense_1').output)
+
+# Defining variables where to iteratively save dataset embeddings and labels.
+dataset_emb = np.zeros((0,64)) 
+
+dataset_lab = []
+print('Processing image embeddings through batches of 10 images per step.')
+sys.stdout.flush()
+
+# Create a list containing all image_paths. 
+image_files = glob('~/embedings/images_embedings/New_Data/*/*')
+
+# Batching loop.
+for x_batch, y_batch in input_pipeline(image_files, 10):
+    # Preprocessing input images for the model.
+    #x = x_batch / 255
+    # Obtain the embeddings of current batch of images.
+    batch_emb = model.predict(x)
+    dataset_emb = np.concatenate((dataset_emb, batch_emb))
+    dataset_lab += y_batch
+
+print('Dataset embedding shape:', dataset_emb.shape)
+print('Length of dataset labels', len(dataset_lab))
+
+np.savez('Embeddingv1.npz', embeddings=dataset_emb, labels=dataset_lab)
