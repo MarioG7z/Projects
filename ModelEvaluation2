@@ -1,0 +1,78 @@
+# ## Evaluating the Cat_Dog model trained through Numpy Array
+# 
+# Now, we will evaluate the model (Cat_Dog_750)  trained using a numpy array. The prediction and evaluation of the models is developing through "model_predict" and "model_evaluate" functions.
+
+#---------------> Loading the Cat_Dog model <---------------
+model = load_model('/home/abacus/DeepL/FirstTry/Model_CatDog_750E.hdf5')
+#model = load_model('/home/abacus/DeepL/FirstTry/CatDOg_ModelBest_VGG19.hdf5')
+
+#--------------------> Loading the Data Test <--------------------
+test = np.load('FirstTry/data_test.npy')
+
+x_test = np.array([i[0] for i in test])
+x_test = x_test.astype('float32')
+
+y_test = [i[1] for i in test]
+y_test = np.concatenate(y_test)
+y_test = y_test.astype('float32')
+
+#--------------------> Normalize Data <--------------------
+x_test /= 255
+
+#--------------------> Adapt the labels to the one-hot vector syntax required by the softmax***  <--------------------
+y_test = np_utils.to_categorical(y_test, 2) #Take care of this. If you use a sigmod you dont need this line.
+
+#-----------------------------> Evaluating the model with test set <-----------------------------
+score = model.evaluate(x_test, y_test, verbose=1)
+print('test loss:', score[0])
+print('test accuracy:', score[1])
+
+#------------------------------> Generating the predictions of the model <-----------------------------
+Predictions = model.predict(x_test, verbose = 1)
+Predicted_classes = np.argmax(Predictions, axis=1)
+
+#------------------------------> Getting the true outputs <------------------------------
+True_classes = np.argmax(y_test, axis=1)
+
+#-------------------> Printing the results (ConfusionMatrix, ClassificatioReport) <-------------------
+#Classification Report
+Class_labels = ['cat', 'dog'] #TargetNames
+print(classification_report(True_classes, Predicted_classes, target_names = Class_labels))
+#Confusion Matrix
+CM = confusion_matrix(True_classes, Predicted_classes)
+print(CM)
+
+#------------------------------> Getting the ROC Curve <------------------------------
+#calculate the fpr and tpr for all thresholds of the classification
+fpr, tpr, threshold = metrics.roc_curve(True_classes, Predicted_classes)
+roc_auc = metrics.auc(fpr, tpr)
+
+#------------------------------> Plotting the ROC Curve <------------------------------
+plt.title('ROC (Receiver Operating Characteristic)')
+plt.plot(fpr, tpr, 'b', label = 'AUC = %0.2f' % roc_auc)
+plt.legend(loc = 'lower right')
+plt.plot([0, 1], [0, 1],'r--')
+plt.xlim([0, 1])
+plt.ylim([0, 1])
+plt.ylabel('True Positive Rate')
+plt.xlabel('False Positive Rate')
+plt.show()
+
+#-------------------> Saving the predictions and the true values <-------------------
+
+filename = 'FirstTry/out/model'
+
+labels = (validation_generator.class_indices)
+labels = dict((v,k) for k,v in labels.items())
+
+predictions_val = [labels[k] for k in Predicted_classes]
+
+filenames_val=validation_generator.filenames
+results=pd.DataFrame({"Filename":filenames_val,
+                      "Predictions":predictions_val})
+results.to_csv(filename+"_names_val.csv",index=False)
+
+np.savetxt(filename+'_confusion_matrix.csv',(CM), delimiter=',')
+np.savetxt(filename+'_trues_logs.csv',(True_classes), delimiter=',')
+np.savetxt(filename+'_predictions_logs.csv',(Predictions), delimiter=',')
+np.savetxt(filename+'_predicted_classes_logs.csv',(Predicted_classes), delimiter=',')
