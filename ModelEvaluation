@@ -1,0 +1,102 @@
+# ## Evaluating the Cat_Dog model trained through ImageDataGenerator
+# 
+# In this case, the model was trained using an Image Data Generator. Then, the prediction and evaluation of the model is devepeloping through "model_predict_generator" and "model_evaluate_generator"  functions.
+
+#------------------------------> Loading and preparing the dataset <------------------------------
+import keras
+from glob import glob
+from keras.preprocessing.image import ImageDataGenerator
+from keras.models import load_model
+import numpy as np
+from keras.utils import np_utils
+from sklearn import metrics
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import classification_report
+import matplotlib.pyplot as plt
+import pandas as pd
+
+#------------------------------> Directories and Parameters <------------------------------
+batch_size = 16
+
+#Work Dirs
+dir_train = '/home/abacus/DeepL/Datasets/cat_dog/train/'
+dir_test = '/home/abacus/DeepL/Datasets/cat_dog/Test/'
+
+#Samples
+nb_tr_samples = len(glob(dir_train+'/*/*'))
+nb_val_samples = len(glob(dir_test+'/*/*'))
+
+#------------------------------> Creating the ImageDataGenerator <------------------------------
+test_datagen = ImageDataGenerator(rescale=1./255)
+
+validation_generator = test_datagen.flow_from_directory(
+    dir_test,
+    target_size=(150, 150),
+    batch_size=batch_size,
+    class_mode='categorical',
+    shuffle = False)
+
+#---------------> Loading the Cat_Dog model <---------------
+Model = load_model('/home/abacus/DeepL/FirstTry/BModel_Flow_From_Directory.hdf5') #This model was developed using DataImageGenerator through an own architechture
+
+#------------------------------> Evaluating the model <------------------------------
+steps_per_epoch = np.math.ceil(validation_generator.samples / validation_generator.batch_size)
+
+print ('Evaluation:')
+score = Model.evaluate_generator(validation_generator, steps = steps_per_epoch, verbose=1)
+val_acc = score[1]
+
+print('Val loss:', score[0])
+print('Val Accuracy:', score[1])
+print('Evaluate', score)
+
+#------------------------------> Generating the predictions of the model <-----------------------------
+validation_generator.reset()
+steps_per_epoch = np.math.ceil(validation_generator.samples / validation_generator.batch_size)
+predictions = Model.predict_generator(validation_generator, steps=steps_per_epoch, verbose=1) #Y
+predicted_classes = np.argmax(predictions, axis=1)
+
+#------------------------------> Getting the true outputs <------------------------------
+true_classes = validation_generator.classes
+
+#------------------------------> Target Names <------------------------------
+class_labels = list(validation_generator.class_indices.keys())   
+
+#-------------------> Printing the results (ConfusionMatrix, ClassificatioReport) <-------------------
+print(classification_report(true_classes, predicted_classes, target_names=class_labels))
+cm = confusion_matrix(true_classes, predicted_classes)
+print(cm)
+
+#------------------------------> Getting the Roc Curve <------------------------------
+#calculate the fpr and tpr for all thresholds of the classification
+fpr, tpr, threshold = metrics.roc_curve(true_classes, predicted_classes)
+roc_auc = metrics.auc(fpr, tpr)
+
+plt.title('ROC (Receiver Operating Characteristic)')
+plt.plot(fpr, tpr, 'b', label = 'AUC = %0.2f' % roc_auc)
+plt.legend(loc = 'lower right')
+plt.plot([0, 1], [0, 1],'r--')
+plt.xlim([0, 1])
+plt.ylim([0, 1])
+plt.ylabel('True Positive Rate')
+plt.xlabel('False Positive Rate')
+plt.show()
+
+#-------------------> Saving the predictions and the true values <-------------------
+
+filename = 'FirstTry/out/model'
+
+labels = (validation_generator.class_indices)
+labels = dict((v,k) for k,v in labels.items())
+
+predictions_val = [labels[k] for k in predicted_classes]
+
+filenames_val=validation_generator.filenames
+results=pd.DataFrame({"Filename":filenames_val,
+                      "Predictions":predictions_val})
+results.to_csv(filename+"_names_val.csv",index=False)
+
+np.savetxt(filename+'_confusion_matrix.csv',(cm), delimiter=',')
+np.savetxt(filename+'_trues_logs.csv',(true_classes), delimiter=',')
+np.savetxt(filename+'_predictions_logs.csv',(predictions), delimiter=',')
+np.savetxt(filename+'_predicted_classes_logs.csv',(predicted_classes), delimiter=',')
